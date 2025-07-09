@@ -5,7 +5,6 @@
 #include <GL/glut.h>
 #include <cmath>
 #include <string>
-
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -216,6 +215,7 @@ int main(int argc, char** argv) {
     glutInitWindowSize(larguraJanela, alturaJanela);
     glutCreateWindow("Sistema Solar 3D");
     configurarCena();
+    PlaySound(TEXT("espaço.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
     glutDisplayFunc(desenharCena);
     glutReshapeFunc(reshape);
     glutKeyboardFunc(teclado);
@@ -230,7 +230,6 @@ int main(int argc, char** argv) {
 
 void tocarSomAmbienteEspacial(float camX, float camZ) {
     float dist = sqrt(camX * camX + camZ * camZ);
-    int volume = 100000 - std::min((int)(dist * 400), 9000);
-    waveOutSetVolume(0, MAKELONG(volume, volume));
-    PlaySound(TEXT("espaço.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
+    int volume = 1000 - std::min((int)(dist * 300), 0x7FFF);
+    waveOutSetVolume(NULL, MAKELONG(volume, volume));
 }
