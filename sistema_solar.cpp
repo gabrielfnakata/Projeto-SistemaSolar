@@ -1,167 +1,211 @@
+
+#include <windows.h>
 #include <GL/glut.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <vector>
+#include <cmath>
 #include <string>
 
-int winWidth = 800, winHeight = 600;
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-float camDistance = 20.0f;
-float camAngleX = 20.0f, camAngleY = -30.0f;
-int lastMouseX, lastMouseY;
-bool rotating = false;
-bool paused = false;
-bool nightMode = false;
+struct Planeta {
+    std::string nome;
+    float cor[3];
+    float raio;
+    float distancia;
+    float anguloOrbita;
+    float velocidadeOrbita;
+    bool temLua;
+    float anguloLua;
+    float rotacaoEixo;
+    float velocidadeRotacao;
+    float inclinacaoEixo;
+};
 
-double timeElapsed = 0.0;
+Planeta planetas[] = {
+    {"Mercurio", {0.6f, 0.6f, 0.6f}, 0.1f, 2.0f, 0.0f, 4.0f, false, 0.0f, 0.0f, 0.1f, 0.03f},
+    {"Venus",    {1.0f, 0.5f, 0.0f}, 0.15f, 2.8f, 0.0f, 1.6f, false, 0.0f, 0.0f, -0.02f, 177.4f},
+    {"Terra",    {0.0f, 0.0f, 1.0f}, 0.18f, 3.6f, 0.0f, 1.0f, true, 0.0f, 0.0f, 1.0f, 23.5f},
+    {"Marte",    {1.0f, 0.0f, 0.0f}, 0.14f, 4.4f, 0.0f, 0.53f, true, 0.0f, 0.0f, 0.98f, 25.2f},
+    {"Jupiter",  {0.9f, 0.8f, 0.6f}, 0.4f, 6.0f, 0.0f, 0.084f, true, 0.0f, 0.0f, 2.5f, 3.1f},
+    {"Saturno",  {1.0f, 1.0f, 0.6f}, 0.35f, 7.4f, 0.0f, 0.034f, true, 0.0f, 0.0f, 2.3f, 26.7f},
+    {"Urano",    {0.5f, 1.0f, 1.0f}, 0.3f, 8.8f, 0.0f, 0.012f, true, 0.0f, 0.0f, -1.5f, 97.8f},
+    {"Netuno",   {0.3f, 0.5f, 1.0f}, 0.3f, 10.2f, 0.0f, 0.006f, true, 0.0f, 0.0f, 1.8f, 28.3f},
+};
 
-typedef struct Celestial {
-    std::string name;
-    float radius;        
-    float distance;        
-    float orbitSpeed;      
-    float selfSpeed;    
-    glm::vec3 color;
-    std::vector<Celestial> satellites;
-} Celestial;
+float cameraDistance = 25.0f;
+float cameraAngleX = 20.0f;
+float cameraAngleY = 0.0f;
+bool mousePressed = false;
+int lastMouseX = 0, lastMouseY = 0;
+bool animacaoPausada = false;
+int larguraJanela = 1280;
+int alturaJanela = 720;
+int tempoAnterior = 0;
 
-std::vector<Celestial> bodies;
+void desenhaEsfera(float raio) {
+    GLUquadric* quad = gluNewQuadric();
+    glDisable(GL_TEXTURE_2D);
+    gluSphere(quad, raio, 40, 40);
+    gluDeleteQuadric(quad);
+}
 
-void drawText(const std::string &text, float x, float y) {
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix(); glLoadIdentity();
-    gluOrtho2D(0, winWidth, 0, winHeight);
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix(); glLoadIdentity();
-    glRasterPos2f(x, y);
-    for(char c: text) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, c);
+void desenharOrbita(float raio) {
+    glColor3f(0.4f, 0.4f, 0.4f);
+    glBegin(GL_LINE_LOOP);
+    for (int i = 0; i < 100; ++i) {
+        float ang = 2 * M_PI * i / 100;
+        float x = cos(ang) * raio;
+        float z = sin(ang) * raio;
+        glVertex3f(x, 0.0f, z);
+    }
+    glEnd();
+}
+
+void desenharSistemaSolar() {
+    glPushMatrix();
+    glColor3f(1.0f, 1.0f, 0.0f);
+    desenhaEsfera(1.2f);
     glPopMatrix();
-    glMatrixMode(GL_PROJECTION); glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
-}
 
-void initBodies() {
-    Celestial sun = {"Sol", 2.0f, 0.0f, 0.0f, 10.0f, {1.0f, 1.0f, 0.0f}};
-    Celestial earth = {"Terra", 0.6f, 8.0f, 30.0f, 60.0f, {0.2f, 0.2f, 1.0f}};
-    Celestial moon = {"Lua", 0.16f, 1.2f, 80.0f, 80.0f, {0.8f, 0.8f, 0.8f}};
-    earth.satellites.push_back(moon);
-    Celestial mars = {"Marte", 0.4f, 12.0f, 24.0f, 40.0f, {1.0f, 0.3f, 0.0f}};
-    bodies.push_back(sun);
-    bodies.push_back(earth);
-    bodies.push_back(mars);
-}
+    for (int i = 0; i < 8; i++) {
+        Planeta& p = planetas[i];
+        desenharOrbita(p.distancia);
 
-void setLighting() {
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-    GLfloat pos[] = {0.0f, 0.0f, 0.0f, 1.0f};
-    glLightfv(GL_LIGHT0, GL_POSITION, pos);
-}
-
-void displayBody(const Celestial &body) {
-    glColor3fv(&body.color[0]);
-    glutSolidSphere(body.radius, 32, 32);
-    
-    for(const auto &sat : body.satellites) {
         glPushMatrix();
-        double angleOrbit = timeElapsed * sat.orbitSpeed;
-        glRotatef(angleOrbit, 0.0f, 1.0f, 0.0f);
-        glTranslatef(sat.distance, 0, 0);
-        glRotatef(timeElapsed * sat.selfSpeed, 0.0f, 1.0f, 0.0f);
-        displayBody(sat);
+        glRotatef(p.anguloOrbita, 0, 1, 0);
+        glTranslatef(p.distancia, 0, 0);
+        glRotatef(p.inclinacaoEixo, 0, 0, 1);
+        glRotatef(p.rotacaoEixo, 0, 1, 0);
+        glColor3fv(p.cor);
+        desenhaEsfera(p.raio);
+
+        if (p.nome == "Saturno") {
+            glPushMatrix();
+            glColor3f(1.0f, 1.0f, 0.8f);
+            glRotatef(90.0f, 1, 0, 0);
+            desenharOrbita(p.raio + 0.5f);
+            glPopMatrix();
+        }
+
+        if (p.nome == "Urano") {
+            glPushMatrix();
+            glColor3f(0.5f, 1.0f, 1.0f);
+            glRotatef(90.0f, 1, 0, 0);
+            desenharOrbita(p.raio + 0.4f);
+            glPopMatrix();
+        }
+
+        if (p.temLua) {
+            glPushMatrix();
+            glRotatef(p.anguloLua, 0, 1, 0);
+            glTranslatef(p.raio + 0.4f, 0, 0);
+            glColor3f(0.8f, 0.8f, 0.8f);
+            desenhaEsfera(0.07f);
+            glPopMatrix();
+        }
+
         glPopMatrix();
     }
 }
 
-void display() {
-    glClearColor(nightMode ? 0.0f : 0.1f, 0.0f, nightMode ? 0.0f : 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+void configurarCena() {
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(0, 0, 0, 1);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_COLOR_MATERIAL);
+    glEnable(GL_LIGHT0);
 
+    GLfloat luz_posicao[] = { 0.0f, 10.0f, 10.0f, 1.0f };
+    GLfloat luz_ambiente[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+    GLfloat luz_difusa[] = { 0.8f, 0.8f, 0.8f, 1.0f };
+    GLfloat luz_especular[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+    glLightfv(GL_LIGHT0, GL_POSITION, luz_posicao);
+    glLightfv(GL_LIGHT0, GL_AMBIENT, luz_ambiente);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, luz_difusa);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, luz_especular);
+}
+
+void desenharCena() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
 
-    glTranslatef(0.0f, 0.0f, -camDistance);
-    glRotatef(camAngleX, 1.0f, 0.0f, 0.0f);
-    glRotatef(camAngleY, 0.0f, 1.0f, 0.0f);
+    double radX = cameraAngleX * M_PI / 180.0;
+    double radY = cameraAngleY * M_PI / 180.0;
+    float camX = static_cast<float>(cameraDistance * cos(radX) * sin(radY));
+    float camY = static_cast<float>(cameraDistance * sin(radX));
+    float camZ = static_cast<float>(cameraDistance * cos(radX) * cos(radY));
 
-    if(!paused) timeElapsed += 0.016; 
-
-    setLighting();
-    
-
-    for(const auto &body : bodies) {
-        glPushMatrix();
-        if(body.distance > 0) {
-            double angleOrbit = timeElapsed * body.orbitSpeed;
-            glRotatef(angleOrbit, 0.0f, 1.0f, 0.0f);
-            glTranslatef(body.distance, 0, 0);
-        }
-        glRotatef(timeElapsed * body.selfSpeed, 0.0f, 1.0f, 0.0f);
-        displayBody(body);
-        glPopMatrix();
-    }
-
-    drawText("Press 'p' to pause/resume, 'n' for night mode", 10, winHeight - 20);
-
+    gluLookAt(camX, camY, camZ, 0, 0, 0, 0, 1, 0);
+    desenharSistemaSolar();
     glutSwapBuffers();
 }
 
 void reshape(int w, int h) {
-    winWidth = w; winHeight = h;
+    larguraJanela = w;
+    alturaJanela = h;
     glViewport(0, 0, w, h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    gluPerspective(45.0, (double)w/h, 1.0, 100.0);
+    gluPerspective(45.0, (double)w / h, 1.0, 100.0);
     glMatrixMode(GL_MODELVIEW);
 }
 
-void mouse(int button, int state, int x, int y) {
-    if(button == GLUT_LEFT_BUTTON) {
-        if(state == GLUT_DOWN) {
-            rotating = true;
-            lastMouseX = x; lastMouseY = y;
-        } else rotating = false;
-    } else if(button == 3) { 
-        camDistance -= 1.0f;
-    } else if(button == 4) { 
-        camDistance += 1.0f;
-    }
-    glutPostRedisplay();
+void teclado(unsigned char tecla, int x, int y) {
+    if (tecla == 32) animacaoPausada = !animacaoPausada;
 }
 
-void motion(int x, int y) {
-    if(rotating) {
-        camAngleY += (x - lastMouseX) * 0.5f;
-        camAngleX += (y - lastMouseY) * 0.5f;
-        lastMouseX = x; lastMouseY = y;
-        glutPostRedisplay();
+void mouse(int botao, int estado, int x, int y) {
+    if (botao == GLUT_LEFT_BUTTON)
+        mousePressed = (estado == GLUT_DOWN);
+    lastMouseX = x;
+    lastMouseY = y;
+}
+
+void movimentoMouse(int x, int y) {
+    if (mousePressed) {
+        float deltaX = x - lastMouseX;
+        float deltaY = y - lastMouseY;
+        cameraAngleY += deltaX * 0.3f;
+        cameraAngleX += deltaY * 0.3f;
+        if (cameraAngleX > 89.0f) cameraAngleX = 89.0f;
+        if (cameraAngleX < -89.0f) cameraAngleX = -89.0f;
+        lastMouseX = x;
+        lastMouseY = y;
     }
 }
 
-void keyboard(unsigned char key, int x, int y) {
-    switch(key) {
-        case 'p': paused = !paused; break;
-        case 'n': nightMode = !nightMode; break;
-        case 27: exit(0);
+void atualizar(int valor) {
+    int tempoAtual = glutGet(GLUT_ELAPSED_TIME);
+    float deltaTime = (tempoAtual - tempoAnterior) / 1000.0f;
+    tempoAnterior = tempoAtual;
+    if (!animacaoPausada) {
+        for (int i = 0; i < 8; i++) {
+            Planeta& p = planetas[i];
+            p.anguloOrbita += p.velocidadeOrbita * deltaTime * 20.0f;
+            p.rotacaoEixo += p.velocidadeRotacao * deltaTime * 20.0f;
+            if (p.temLua)
+                p.anguloLua += 6.0f * deltaTime * 20.0f;
+        }
     }
     glutPostRedisplay();
+    glutTimerFunc(16, atualizar, 0);
 }
 
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-    glutInitWindowSize(winWidth, winHeight);
-    glutCreateWindow("Sistema Solar 3D");
-    glEnable(GL_DEPTH_TEST);
-
-    initBodies();
-    
-    glutDisplayFunc(display);
+    glutInitWindowSize(larguraJanela, alturaJanela);
+    glutCreateWindow("Sistema Solar 3D - GLUT (Somente Cores)");
+    configurarCena();
+    glutDisplayFunc(desenharCena);
     glutReshapeFunc(reshape);
+    glutKeyboardFunc(teclado);
     glutMouseFunc(mouse);
-    glutMotionFunc(motion);
-    glutKeyboardFunc(keyboard);
-    glutIdleFunc(display);
-
+    glutMotionFunc(movimentoMouse);
+    tempoAnterior = glutGet(GLUT_ELAPSED_TIME);
+    glutTimerFunc(16, atualizar, 0);
     glutMainLoop();
     return 0;
 }
