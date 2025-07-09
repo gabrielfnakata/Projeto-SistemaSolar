@@ -1,5 +1,7 @@
 
 #include <windows.h>
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib")
 #include <GL/glut.h>
 #include <cmath>
 #include <string>
@@ -23,17 +25,17 @@ struct Planeta {
 };
 
 Planeta planetas[] = {
-    {"Mercurio", {0.6f, 0.6f, 0.6f}, 0.1f, 2.0f, 0.0f, 4.0f, false, 0.0f, 0.0f, 0.1f, 0.03f},
-    {"Venus",    {1.0f, 0.5f, 0.0f}, 0.15f, 2.8f, 0.0f, 1.6f, false, 0.0f, 0.0f, -0.02f, 177.4f},
-    {"Terra",    {0.0f, 0.0f, 1.0f}, 0.18f, 3.6f, 0.0f, 1.0f, true, 0.0f, 0.0f, 1.0f, 23.5f},
-    {"Marte",    {1.0f, 0.0f, 0.0f}, 0.14f, 4.4f, 0.0f, 0.53f, true, 0.0f, 0.0f, 0.98f, 25.2f},
-    {"Jupiter",  {0.9f, 0.8f, 0.6f}, 0.4f, 6.0f, 0.0f, 0.084f, true, 0.0f, 0.0f, 2.5f, 3.1f},
-    {"Saturno",  {1.0f, 1.0f, 0.6f}, 0.35f, 7.4f, 0.0f, 0.034f, true, 0.0f, 0.0f, 2.3f, 26.7f},
-    {"Urano",    {0.5f, 1.0f, 1.0f}, 0.3f, 8.8f, 0.0f, 0.012f, true, 0.0f, 0.0f, -1.5f, 97.8f},
-    {"Netuno",   {0.3f, 0.5f, 1.0f}, 0.3f, 10.2f, 0.0f, 0.006f, true, 0.0f, 0.0f, 1.8f, 28.3f},
+    {"Mercurio", {0.6f, 0.6f, 0.6f}, 0.2f, 4.0f, 0.0f, 4.0f, false, 0.0f, 0.0f, 0.2f, 0.03f},
+    {"Venus",    {1.0f, 0.5f, 0.0f}, 0.6f, 5.6f, 0.0f, 1.6f, false, 0.0f, 0.0f, -0.02f, 1714.8f},
+    {"Terra",    {0.0f, 0.0f, 1.0f}, 0.36f, 7.2f, 0.0f, 1.0f, true, 0.0f, 0.0f, 1.0f, 23.5f},
+    {"Marte",    {1.0f, 0.0f, 0.0f}, 0.28f, 17.6f, 0.0f, 0.53f, true, 0.0f, 0.0f, 0.98f, 25.2f},
+    {"Jupiter",  {0.9f, 0.8f, 0.6f}, 0.8f, 12.0f, 0.0f, 0.084f, true, 0.0f, 0.0f, 2.5f, 3.1f},
+    {"Saturno",  {1.0f, 1.0f, 0.6f}, 0.7f, 14.8f, 0.0f, 0.034f, true, 0.0f, 0.0f, 2.3f, 26.7f},
+    {"Urano",    {0.5f, 1.0f, 1.0f}, 0.6f, 17.6f, 0.0f, 0.012f, true, 0.0f, 0.0f, -1.5f, 97.8f},
+    {"Netuno",   {0.6f, 0.5f, 1.0f}, 0.6f, 20.4f, 0.0f, 0.006f, true, 0.0f, 0.0f, 1.8f, 28.3f},
 };
 
-float cameraDistance = 25.0f;
+float cameraDistance = 45.0f;
 float cameraAngleX = 20.0f;
 float cameraAngleY = 0.0f;
 bool mousePressed = false;
@@ -51,7 +53,7 @@ void desenhaEsfera(float raio) {
 }
 
 void desenharOrbita(float raio) {
-    glColor3f(0.4f, 0.4f, 0.4f);
+    glColor3f(0.8f, 0.8f, 0.8f);
     glBegin(GL_LINE_LOOP);
     for (int i = 0; i < 100; ++i) {
         float ang = 2 * M_PI * i / 100;
@@ -65,7 +67,7 @@ void desenharOrbita(float raio) {
 void desenharSistemaSolar() {
     glPushMatrix();
     glColor3f(1.0f, 1.0f, 0.0f);
-    desenhaEsfera(1.2f);
+    desenhaEsfera(2.4f);
     glPopMatrix();
 
     for (int i = 0; i < 8; i++) {
@@ -92,14 +94,14 @@ void desenharSistemaSolar() {
             glPushMatrix();
             glColor3f(0.5f, 1.0f, 1.0f);
             glRotatef(90.0f, 1, 0, 0);
-            desenharOrbita(p.raio + 0.4f);
+            desenharOrbita(p.raio + 0.8f);
             glPopMatrix();
         }
 
         if (p.temLua) {
             glPushMatrix();
             glRotatef(p.anguloLua, 0, 1, 0);
-            glTranslatef(p.raio + 0.4f, 0, 0);
+            glTranslatef(p.raio + 0.8f, 0, 0);
             glColor3f(0.8f, 0.8f, 0.8f);
             desenhaEsfera(0.07f);
             glPopMatrix();
@@ -156,25 +158,37 @@ void teclado(unsigned char tecla, int x, int y) {
     if (tecla == 32) animacaoPausada = !animacaoPausada;
 }
 
+
 void mouse(int botao, int estado, int x, int y) {
     if (botao == GLUT_LEFT_BUTTON)
         mousePressed = (estado == GLUT_DOWN);
+    else if (botao == 3 && estado == GLUT_DOWN)
+        cameraDistance -= 1.0f;
+    else if (botao == 4 && estado == GLUT_DOWN)
+        cameraDistance += 1.0f;
+
+    if (cameraDistance < 5.0f) cameraDistance = 5.0f;
+    if (cameraDistance > 200.0f) cameraDistance = 200.0f;
+
     lastMouseX = x;
     lastMouseY = y;
 }
+
 
 void movimentoMouse(int x, int y) {
     if (mousePressed) {
         float deltaX = x - lastMouseX;
         float deltaY = y - lastMouseY;
-        cameraAngleY += deltaX * 0.3f;
-        cameraAngleX += deltaY * 0.3f;
+        cameraAngleY += deltaX * 0.6f;
+        cameraAngleX += deltaY * 0.6f;
         if (cameraAngleX > 89.0f) cameraAngleX = 89.0f;
         if (cameraAngleX < -89.0f) cameraAngleX = -89.0f;
         lastMouseX = x;
         lastMouseY = y;
     }
 }
+
+void tocarSomAmbienteEspacial(float camX, float camZ);
 
 void atualizar(int valor) {
     int tempoAtual = glutGet(GLUT_ELAPSED_TIME);
@@ -186,10 +200,13 @@ void atualizar(int valor) {
             p.anguloOrbita += p.velocidadeOrbita * deltaTime * 20.0f;
             p.rotacaoEixo += p.velocidadeRotacao * deltaTime * 20.0f;
             if (p.temLua)
-                p.anguloLua += 6.0f * deltaTime * 20.0f;
+                p.anguloLua += 12.0f * deltaTime * 20.0f;
         }
     }
-    glutPostRedisplay();
+    float camX = cameraDistance * cos(cameraAngleX * M_PI / 180.0f) * sin(cameraAngleY * M_PI / 180.0f);
+float camZ = cameraDistance * cos(cameraAngleX * M_PI / 180.0f) * cos(cameraAngleY * M_PI / 180.0f);
+tocarSomAmbienteEspacial(camX, camZ);
+glutPostRedisplay();
     glutTimerFunc(16, atualizar, 0);
 }
 
@@ -197,7 +214,7 @@ int main(int argc, char** argv) {
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
     glutInitWindowSize(larguraJanela, alturaJanela);
-    glutCreateWindow("Sistema Solar 3D - GLUT (Somente Cores)");
+    glutCreateWindow("Sistema Solar 3D");
     configurarCena();
     glutDisplayFunc(desenharCena);
     glutReshapeFunc(reshape);
@@ -208,4 +225,12 @@ int main(int argc, char** argv) {
     glutTimerFunc(16, atualizar, 0);
     glutMainLoop();
     return 0;
+}
+
+
+void tocarSomAmbienteEspacial(float camX, float camZ) {
+    float dist = sqrt(camX * camX + camZ * camZ);
+    int volume = 100000 - std::min((int)(dist * 400), 9000);
+    waveOutSetVolume(0, MAKELONG(volume, volume));
+    PlaySound(TEXT("espaço.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
 }
