@@ -9,9 +9,11 @@
 
 #include <GL/glut.h>
 #include <cmath>
+#include <cstdlib>
+#include <ctime>
 #include <string>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "include/stb_image.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -54,9 +56,17 @@ float cameraAngleY = 0.0f;
 bool mousePressed = false;
 int lastMouseX = 0, lastMouseY = 0;
 bool animacaoPausada = false;
+bool modoNoturno = false;
 int larguraJanela = 1280;
 int alturaJanela = 720;
 int tempoAnterior = 0;
+
+struct Estrela {
+    float x, y, z;
+    float brilho;
+};
+
+Estrela estrelas[500];
 
 void desenhaEsfera(float raio, int texturaIndex, GLuint texturaEspecifica = 0) {
     GLuint texturaAtiva = 0;
@@ -80,6 +90,41 @@ void desenhaEsfera(float raio, int texturaIndex, GLuint texturaEspecifica = 0) {
     if (texturaAtiva != 0) {
         glDisable(GL_TEXTURE_2D);
     }
+}
+
+void gerarEstrelas() {
+    for (int i = 0; i < 500; i++) {
+        float theta = ((float)rand() / RAND_MAX) * 2.0f * M_PI;
+        float phi = ((float)rand() / RAND_MAX) * M_PI;
+        float raio = 80.0f + ((float)rand() / RAND_MAX) * 40.0f; 
+        
+        estrelas[i].x = raio * sin(phi) * cos(theta);
+        estrelas[i].y = raio * cos(phi);
+        estrelas[i].z = raio * sin(phi) * sin(theta);
+        estrelas[i].brilho = 0.3f + ((float)rand() / RAND_MAX) * 0.7f; 
+    }
+}
+
+void desenharEstrelas() {
+    if (!modoNoturno) return;
+    
+    glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_2D);
+    glPointSize(2.0f);
+    
+    glBegin(GL_POINTS);
+    for (int i = 0; i < 500; i++) {
+        float brilho = estrelas[i].brilho + 0.2f * sin(glutGet(GLUT_ELAPSED_TIME) * 0.01f + i);
+        if (brilho > 1.0f) brilho = 1.0f;
+        if (brilho < 0.1f) brilho = 0.1f;
+        
+        glColor3f(brilho, brilho, brilho);
+        glVertex3f(estrelas[i].x, estrelas[i].y, estrelas[i].z);
+    }
+    glEnd();
+    
+    glEnable(GL_LIGHTING);
+    glPointSize(1.0f);
 }
 
 void desenharOrbita(float raio) {
@@ -144,7 +189,13 @@ void desenharSistemaSolar() {
 
 void configurarCena() {
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0, 0, 0, 1);
+    
+    if (modoNoturno) {
+        glClearColor(0.02f, 0.02f, 0.1f, 1.0f); 
+    } else {
+        glClearColor(0, 0, 0, 1);
+    }
+    
     glEnable(GL_LIGHTING);
     glEnable(GL_COLOR_MATERIAL);
     glEnable(GL_LIGHT0);
@@ -174,6 +225,9 @@ void desenharCena() {
     float camZ = static_cast<float>(cameraDistance * cos(radX) * cos(radY));
 
     gluLookAt(camX, camY, camZ, 0, 0, 0, 0, 1, 0);
+    
+    desenharEstrelas();
+    
     desenharSistemaSolar();
     glutSwapBuffers();
 }
@@ -189,7 +243,12 @@ void reshape(int w, int h) {
 }
 
 void teclado(unsigned char tecla, int x, int y) {
-    if (tecla == 32) animacaoPausada = !animacaoPausada;
+    if (tecla == 32) animacaoPausada = !animacaoPausada; 
+    if (tecla == 'n' || tecla == 'N') {
+        modoNoturno = !modoNoturno;
+        configurarCena(); 
+        printf("Modo noturno: %s\n", modoNoturno ? "ATIVADO" : "DESATIVADO");
+    }
 }
 
 
@@ -246,6 +305,8 @@ glutPostRedisplay();
 
 void init() {
     glEnable(GL_DEPTH_TEST);
+    
+    gerarEstrelas();
 
     const char* nomes[] = {"mercurio", "venus", "terra", "marte", "jupiter", "saturno", "urano", "netuno"};
     
@@ -277,6 +338,8 @@ void init() {
 }
 
 int main(int argc, char** argv) {
+    srand(time(NULL)); 
+    
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
     glutInitWindowSize(larguraJanela, alturaJanela);
@@ -284,7 +347,7 @@ int main(int argc, char** argv) {
     configurarCena();
 
 #ifdef _WIN32
-    PlaySound(TEXT("espaço.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
+    PlaySound(TEXT("include/espaço.wav"), NULL, SND_FILENAME | SND_ASYNC | SND_LOOP);
 #else
     std::cout << "Som de fundo não disponível no Linux" << std::endl;
 #endif
